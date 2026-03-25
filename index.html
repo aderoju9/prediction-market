@@ -3,7 +3,7 @@
 <head>
 <script defer data-domain="https://prediction-market1.vercel.app/" src="https://analytics.vgdh.io/js/script.js"></script>
 <title>Verse Market Intelligence</title>
-<link href="img/verse.ico" rel="icon">
+<link href="img/verse.ico" rel="icon" onerror="console.warn('Favicon failed to load')">
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -35,13 +35,22 @@ margin:8px;
 canvas{
 margin-top:25px;
 }
+
+.debug-info{
+font-size:12px;
+color:#94a3b8;
+margin-top:20px;
+padding:10px;
+background:#0f172a;
+border-radius:8px;
+}
 </style>
 
 </head>
 
 <body>
 
-<h1><img src="img/verse.svg" alt="Verse" align="absmiddle" width="35" height="35"> Verse Market Intelligence</h1>
+<h1><img src="img/verse.svg" alt="Verse" align="absmiddle" width="35" height="35" onerror="this.style.display='none'"> Verse Market Intelligence</h1>
 
 <div class="card">
 
@@ -55,117 +64,183 @@ margin-top:25px;
 
 <canvas id="chart"></canvas>
 
+<div class="debug-info">
+<div>Analytics Status: <span id="analytics-status">Checking...</span></div>
+<div>Visitors: <span id="visitor-count">Loading...</span></div>
+</div>
+
 </div>
 
 <script>
 
+// Initialize analytics debugging
+console.log('=== Verse Market Intelligence Analytics Debug ===');
+console.log('Current URL:', window.location.href);
+console.log('Expected Domain:', 'https://prediction-market1.vercel.app/');
+console.log('Time:', new Date().toISOString());
+
+// Track visitor with localStorage
+function trackVisitor() {
+  try {
+    const visitorKey = 'verse-market-visitor-id';
+    const visitCountKey = 'verse-market-visit-count';
+    
+    let visitorId = localStorage.getItem(visitorKey);
+    if (!visitorId) {
+      visitorId = 'visitor-' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem(visitorKey, visitorId);
+      console.log('New visitor tracked:', visitorId);
+    } else {
+      console.log('Returning visitor:', visitorId);
+    }
+    
+    let visitCount = parseInt(localStorage.getItem(visitCountKey) || '0') + 1;
+    localStorage.setItem(visitCountKey, visitCount);
+    console.log('Visit count:', visitCount);
+    
+    document.getElementById('visitor-count').innerText = visitCount;
+    
+    return visitorId;
+  } catch (e) {
+    console.error('Failed to track visitor:', e);
+    document.getElementById('visitor-count').innerText = 'Error';
+  }
+}
+
+// Check analytics script
+function checkAnalytics() {
+  try {
+    if (window.plausible) {
+      console.log('✓ Analytics script loaded successfully');
+      document.getElementById('analytics-status').innerText = '✓ Active';
+      document.getElementById('analytics-status').style.color = '#22c55e';
+      
+      // Send custom event
+      if (typeof plausible === 'function') {
+        plausible('Page View', { props: { page: 'dashboard' } });
+      }
+    } else {
+      console.warn('⚠ Analytics script not yet loaded');
+      document.getElementById('analytics-status').innerText = '⚠ Loading...';
+      document.getElementById('analytics-status').style.color = '#eab308';
+      
+      // Retry after delay
+      setTimeout(checkAnalytics, 2000);
+    }
+  } catch (e) {
+    console.error('Error checking analytics:', e);
+    document.getElementById('analytics-status').innerText = '✗ Error';
+    document.getElementById('analytics-status').style.color = '#ef4444';
+  }
+}
+
+trackVisitor();
+setTimeout(checkAnalytics, 1000);
+
 async function loadData(){
-
-const url =
-"https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30";
-
-const res = await fetch(url);
-const data = await res.json();
-
-const prices = data.prices.map(p => p[1]);
-
-const today = prices[prices.length-1];
-const yesterday = prices[prices.length-2];
-
-const change = today - yesterday;
-
-const prediction = today + change;
-
-document.getElementById("price").innerText =
-"Price: $" + today.toFixed(2);
-
-document.getElementById("yesterday").innerText =
-"Yesterday: $" + yesterday.toFixed(2);
-
-document.getElementById("prediction").innerText =
-"Tomorrow Prediction: $" + prediction.toFixed(2);
-
-detectCycle(today);
-
-drawChart(prices);
-
+  try {
+    console.log('Fetching Bitcoin data...');
+    
+    const url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30";
+    
+    const res = await fetch(url);
+    
+    if (!res.ok) {
+      throw new Error(`API Error: ${res.status} ${res.statusText}`);
+    }
+    
+    const data = await res.json();
+    console.log('Data fetched successfully:', data.prices.length, 'price points');
+    
+    const prices = data.prices.map(p => p[1]);
+    
+    const today = prices[prices.length-1];
+    const yesterday = prices[prices.length-2];
+    
+    const change = today - yesterday;
+    const prediction = today + change;
+    
+    document.getElementById("price").innerText = "Price: $" + today.toFixed(2);
+    document.getElementById("yesterday").innerText = "Yesterday: $" + yesterday.toFixed(2);
+    document.getElementById("prediction").innerText = "Tomorrow Prediction: $" + prediction.toFixed(2);
+    
+    console.log('Price data updated:', { today, yesterday, prediction });
+    
+    detectCycle(today);
+    drawChart(prices);
+    
+  } catch (error) {
+    console.error('Failed to load data:', error);
+    document.getElementById("price").innerText = "Price: Error loading data";
+    document.getElementById("price").style.color = '#ef4444';
+  }
 }
 
 function detectCycle(price){
-
-const halvingDate = new Date("2024-04-20");
-
-const today = new Date();
-
-const diff = today - halvingDate;
-
-const days = Math.floor(diff/(1000*60*60*24));
-
-document.getElementById("days").innerText =
-"Days Since Halving: " + days;
-
-let phase;
-
-if(days < 0){
-
-phase = "Pre-Halving Accumulation";
-
-}
-
-else if(days < 550){
-
-phase = "BULL MARKET";
-
-document.getElementById("cycle").className="stat bull";
-
-}
-
-else{
-
-phase = "BEAR MARKET";
-
-document.getElementById("cycle").className="stat bear";
-
-}
-
-document.getElementById("cycle").innerText =
-"Market Phase: " + phase;
-
-estimatePeak(price);
-
+  try {
+    const halvingDate = new Date("2024-04-20");
+    const today = new Date();
+    const diff = today - halvingDate;
+    const days = Math.floor(diff/(1000*60*60*24));
+    
+    document.getElementById("days").innerText = "Days Since Halving: " + days;
+    
+    let phase;
+    
+    if(days < 0){
+      phase = "Pre-Halving Accumulation";
+    }
+    else if(days < 550){
+      phase = "BULL MARKET";
+      document.getElementById("cycle").className="stat bull";
+    }
+    else{
+      phase = "BEAR MARKET";
+      document.getElementById("cycle").className="stat bear";
+    }
+    
+    document.getElementById("cycle").innerText = "Market Phase: " + phase;
+    console.log('Market phase:', phase, 'Days:', days);
+    
+    estimatePeak(price);
+  } catch (error) {
+    console.error('Error detecting cycle:', error);
+  }
 }
 
 function estimatePeak(price){
-
-const multiplier = 3;
-
-const peak = price * multiplier;
-
-document.getElementById("peak").innerText =
-"Estimated Cycle Peak: $" + peak.toFixed(0);
-
+  try {
+    const multiplier = 3;
+    const peak = price * multiplier;
+    document.getElementById("peak").innerText = "Estimated Cycle Peak: $" + peak.toFixed(0);
+    console.log('Peak estimate:', peak);
+  } catch (error) {
+    console.error('Error estimating peak:', error);
+  }
 }
 
 function drawChart(prices){
-
-const ctx = document.getElementById("chart");
-
-new Chart(ctx,{ 
-
-type:"line",
-
-data:{
-labels:prices.map((_,i)=>i),
-datasets:[{
-label:"BTC Price (30 days)",
-data:prices
-}]
+  try {
+    const ctx = document.getElementById("chart");
+    
+    new Chart(ctx,{ 
+      type:"line",
+      data:{
+        labels:prices.map((_,i)=>i),
+        datasets:[{
+          label:"BTC Price (30 days)",
+          data:prices
+        }]
+      }
+    });
+    console.log('Chart rendered successfully');
+  } catch (error) {
+    console.error('Error drawing chart:', error);
+    document.getElementById("chart").style.display = 'none';
+  }
 }
 
-});
-
-}
-
+console.log('Initializing data load...');
 loadData();
 
 </script>
