@@ -1,252 +1,315 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <script defer="" data-domain="prediction-market1.vercel.app" src="https://analytics.vgdh.io/js/script.js"></script>
-  <script defer="" data-domain="prediction-market1.vercel.app" src="https://analytics.vgdh.io/js/script.js"></script>
-  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verse Market Intelligence</title>
+    <link href="img/verse.ico" rel="icon">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.1/dist/chartjs-adapter-luxon.umd.min.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-<title>Verse Market Intelligence</title>
-<link href="img/verse.ico" rel="icon" onerror="console.warn('Favicon failed to load')">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            min-height: 100vh;
+        }
 
-<style>
-body{
-font-family:Arial;
-background:#0f172a;
-color:white;
-text-align:center;
-padding:40px;
-}
+        .card {
+            background: #1e293b;
+            padding: 28px;
+            border-radius: 20px;
+            max-width: 680px;
+            margin: 0 auto;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.4);
+        }
 
-.card{
-background:#1e293b;
-padding:25px;
-border-radius:12px;
-width:500px;
-margin:auto;
-}
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin: 25px 0;
+        }
 
-.stat{
-font-size:20px;
-margin:8px;
-}
+        .stat { 
+            background: rgba(15,23,42,0.7); 
+            padding: 16px; 
+            border-radius: 12px; 
+        }
+        .stat-label { font-size: 0.82rem; color: #94a3b8; }
+        .stat-value { font-size: 1.45rem; font-weight: 700; margin-top: 6px; }
 
-.bull{color:#22c55e;}
-.bear{color:#ef4444;}
+        .bull { color: #22c55e; }
+        .bear { color: #ef4444; }
 
-canvas{
-margin-top:25px;
-}
+        .chart-container { 
+            height: 380px; 
+            margin: 30px 0 20px; 
+            border-radius: 16px;
+            background: #0f172a;
+            padding: 10px;
+        }
 
-.debug-info{
-font-size:12px;
-color:#94a3b8;
-margin-top:20px;
-padding:10px;
-background:#0f172a;
-border-radius:8px;
-}
-</style>
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
 
+        button {
+            padding: 14px 26px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .btn-primary { background: #22c55e; color: #0f172a; }
+        .btn-secondary { background: #334155; color: white; }
+
+        /* Share Image (Static) */
+        #share-card {
+            width: 1080px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            padding: 60px 50px 50px;
+            border-radius: 32px;
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 0 0 18px #22c55e;
+            text-align: center;
+        }
+
+        #share-card .brand { font-size: 2.6rem; font-weight: 700; letter-spacing: -1px; }
+        #share-card .subtitle { color: #22c55e; font-size: 1.2rem; margin-bottom: 40px; }
+        #share-price { font-size: 5rem; font-weight: 700; color: #22c55e; }
+        #share-prediction { font-size: 2.1rem; font-weight: 600; color: #67e8a5; margin: 30px 0 40px; }
+        #share-chart-container { width: 980px; height: 420px; margin: 35px auto; }
+    </style>
 </head>
-
 <body>
 
-<h1><img src="img/verse.svg" alt="Verse" align="absmiddle" width="35" height="35" onerror="this.style.display='none'"> Verse Market Intelligence</h1>
+    <div class="card">
+        <h1 style="margin-bottom:20px;">
+            <img src="img/verse.svg" alt="Verse" width="42" height="42" style="vertical-align:middle;">
+            Verse Market Intelligence
+        </h1>
 
-<div class="card">
+        <div class="stats-grid">
+            <div class="stat"><div class="stat-label">CURRENT PRICE</div><div class="stat-value bull" id="price">$...</div></div>
+            <div class="stat"><div class="stat-label">24H CHANGE</div><div class="stat-value" id="change">...</div></div>
+            <div class="stat"><div class="stat-label">YESTERDAY</div><div class="stat-value" id="yesterday">$...</div></div>
+            <div class="stat"><div class="stat-label">TOMORROW PREDICTION</div><div class="stat-value bull" id="prediction">$...</div></div>
+        </div>
 
-<div class="stat" id="price">Price: ...</div>
-<div class="stat" id="yesterday">Yesterday: ...</div>
-<div class="stat" id="prediction" style="color: #22c55e;">Tomorrow Prediction: ...</div>
+        <div class="stats-grid">
+            <div class="stat"><div class="stat-label">MARKET PHASE</div><div class="stat-value" id="cycle">Loading...</div></div>
+            <div class="stat"><div class="stat-label">DAYS SINCE HALVING</div><div class="stat-value" id="days">...</div></div>
+            <div class="stat"><div class="stat-label">EST. CYCLE PEAK</div><div class="stat-value bull" id="peak">$...</div></div>
+        </div>
 
-<div class="stat" id="cycle"></div>
-<div class="stat" id="days"></div>
-<div class="stat" id="peak"></div>
+        <div class="chart-container">
+            <canvas id="main-chart"></canvas>
+        </div>
 
-<canvas id="chart"></canvas>
+        <div class="controls">
+            <button class="btn-primary" onclick="refreshData()">🔄 Refresh Data</button>
+            <button class="btn-primary" onclick="downloadShareImage()">⬇️ Download X Image</button>
+            <button class="btn-secondary" onclick="shareOnX()">𝕏 Share Signal</button>
+        </div>
+    </div>
 
-<div class="debug-info">
-<div>Analytics Status: <span id="analytics-status">Checking...</span></div>
-<div>Visitors: <span id="visitor-count">Loading...</span></div>
-</div>
+    <!-- Hidden Share Image -->
+    <div id="share-card">
+        <div class="brand">VERSE</div>
+        <div class="subtitle">MARKET INTELLIGENCE</div>
 
-</div>
+        <div id="share-price">$00000</div>
+        <div id="share-prediction">
+            Tomorrow's Market Prediction: <span id="share-pred-value" style="color:#a3e6b8;">$00000</span>
+        </div>
 
-<script>
+        <div id="share-chart-container">
+            <canvas id="share-chart"></canvas>
+        </div>
 
-// Initialize analytics debugging
-console.log('=== Verse Market Intelligence Analytics Debug ===');
-console.log('Current URL:', window.location.href);
-console.log('Expected Domain:', 'https://prediction-market1.vercel.app/');
-console.log('Time:', new Date().toISOString());
+        <div style="margin-top:25px; color:#94a3b8; font-size:1.1rem;">
+            Phase: <span id="share-phase"></span> • 
+            Days Since Halving: <span id="share-days"></span>
+        </div>
 
-// Track visitor with localStorage
-function trackVisitor() {
-  try {
-    const visitorKey = 'verse-market-visitor-id';
-    const visitCountKey = 'verse-market-visit-count';
-    
-    let visitorId = localStorage.getItem(visitorKey);
-    if (!visitorId) {
-      visitorId = 'visitor-' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem(visitorKey, visitorId);
-      console.log('New visitor tracked:', visitorId);
-    } else {
-      console.log('Returning visitor:', visitorId);
-    }
-    
-    let visitCount = parseInt(localStorage.getItem(visitCountKey) || '0') + 1;
-    localStorage.setItem(visitCountKey, visitCount);
-    console.log('Visit count:', visitCount);
-    
-    document.getElementById('visitor-count').innerText = visitCount;
-    
-    return visitorId;
-  } catch (e) {
-    console.error('Failed to track visitor:', e);
-    document.getElementById('visitor-count').innerText = 'Error';
-  }
-}
+        <div style="margin-top:50px; font-size:0.95rem; color:#64748b;">
+            Generated by Verse Market Intelligence
+        </div>
+    </div>
 
-// Check analytics script
-function checkAnalytics() {
-  try {
-    if (window.plausible) {
-      console.log('✓ Analytics script loaded successfully');
-      document.getElementById('analytics-status').innerText = '✓ Active';
-      document.getElementById('analytics-status').style.color = '#22c55e';
-      
-      // Send custom event
-      if (typeof plausible === 'function') {
-        plausible('Page View', { props: { page: 'dashboard' } });
-      }
-    } else {
-      console.warn('⚠ Analytics script not yet loaded');
-      document.getElementById('analytics-status').innerText = '⚠ Loading...';
-      document.getElementById('analytics-status').style.color = '#eab308';
-      
-      // Retry after delay
-      setTimeout(checkAnalytics, 2000);
-    }
-  } catch (e) {
-    console.error('Error checking analytics:', e);
-    document.getElementById('analytics-status').innerText = '✗ Error';
-    document.getElementById('analytics-status').style.color = '#ef4444';
-  }
-}
+    <script>
+        let mainChart = null;
+        let shareChart = null;
+        let currentPrice = 0;
+        let tomorrowPred = 0;
 
-trackVisitor();
-setTimeout(checkAnalytics, 1000);
+        async function loadData() {
+            try {
+                const res = await fetch("https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30&interval=daily");
+                const data = await res.json();
 
-async function loadData(){
-  try {
-    console.log('Fetching Bitcoin data...');
-    
-    const url = "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=30";
-    
-    const res = await fetch(url);
-    
-    if (!res.ok) {
-      throw new Error(`API Error: ${res.status} ${res.statusText}`);
-    }
-    
-    const data = await res.json();
-    console.log('Data fetched successfully:', data.prices.length, 'price points');
-    
-    const prices = data.prices.map(p => p[1]);
-    
-    const today = prices[prices.length-1];
-    const yesterday = prices[prices.length-2];
-    
-    const change = today - yesterday;
-    const prediction = today + change;
-    
-    document.getElementById("price").innerText = "Price: $" + today.toFixed(2);
-    document.getElementById("yesterday").innerText = "Yesterday: $" + yesterday.toFixed(2);
-    document.getElementById("prediction").innerText = "Tomorrow Prediction: $" + prediction.toFixed(2);
-    
-    console.log('Price data updated:', { today, yesterday, prediction });
-    
-    detectCycle(today);
-    drawChart(prices);
-    
-  } catch (error) {
-    console.error('Failed to load data:', error);
-    document.getElementById("price").innerText = "Price: Error loading data";
-    document.getElementById("price").style.color = '#ef4444';
-  }
-}
+                const prices = data.prices.map(p => ({ x: p[0], y: p[1] }));
+                currentPrice = prices[prices.length - 1].y;
 
-function detectCycle(price){
-  try {
-    const halvingDate = new Date("2024-04-20");
-    const today = new Date();
-    const diff = today - halvingDate;
-    const days = Math.floor(diff/(1000*60*60*24));
-    
-    document.getElementById("days").innerText = "Days Since Halving: " + days;
-    
-    let phase;
-    
-    if(days < 0){
-      phase = "Pre-Halving Accumulation";
-    }
-    else if(days < 550){
-      phase = "BULL MARKET";
-      document.getElementById("cycle").className="stat bull";
-    }
-    else{
-      phase = "BEAR MARKET";
-      document.getElementById("cycle").className="stat bear";
-    }
-    
-    document.getElementById("cycle").innerText = "Market Phase: " + phase;
-    console.log('Market phase:', phase, 'Days:', days);
-    
-    estimatePeak(price);
-  } catch (error) {
-    console.error('Error detecting cycle:', error);
-  }
-}
+                const yesterday = prices[prices.length - 2].y;
+                const changePct = ((currentPrice - yesterday) / yesterday) * 100;
+                tomorrowPred = Math.round(currentPrice * (1 + changePct / 100));
 
-function estimatePeak(price){
-  try {
-    const multiplier = 3;
-    const peak = price * multiplier;
-    document.getElementById("peak").innerText = "Estimated Cycle Peak: $" + peak.toFixed(0);
-    console.log('Peak estimate:', peak);
-  } catch (error) {
-    console.error('Error estimating peak:', error);
-  }
-}
+                document.getElementById("price").textContent = "$" + currentPrice.toLocaleString();
+                document.getElementById("yesterday").textContent = "$" + yesterday.toLocaleString();
+                document.getElementById("prediction").textContent = "$" + tomorrowPred.toLocaleString();
 
-function drawChart(prices){
-  try {
-    const ctx = document.getElementById("chart");
-    
-    new Chart(ctx,{ 
-      type:"line",
-      data:{
-        labels:prices.map((_,i)=>i),
-        datasets:[{
-          label:"BTC Price (30 days)",
-          data:prices
-        }]
-      }
-    });
-    console.log('Chart rendered successfully');
-  } catch (error) {
-    console.error('Error drawing chart:', error);
-    document.getElementById("chart").style.display = 'none';
-  }
-}
+                const changeEl = document.getElementById("change");
+                changeEl.textContent = (changePct >= 0 ? "+" : "") + changePct.toFixed(2) + "%";
+                changeEl.style.color = changePct >= 0 ? "#22c55e" : "#ef4444";
 
-console.log('Initializing data load...');
-loadData();
+                detectCycle(currentPrice);
+                drawMainChart(prices);
+                drawShareChart(prices);
 
-</script>
+            } catch (e) { console.error(e); }
+        }
 
+        function detectCycle(price) {
+            const daysSince = Math.floor((Date.now() - new Date("2024-04-20")) / 86400000);
+            let phase = daysSince > 550 ? "BEAR MARKET" : "BULL MARKET";
+
+            document.getElementById("days").textContent = daysSince + " days";
+            document.getElementById("cycle").textContent = phase;
+            document.getElementById("cycle").className = `stat-value ${daysSince > 550 ? 'bear' : 'bull'}`;
+
+            const peak = Math.round(price * (daysSince < 400 ? 3.3 : 2.2));
+            document.getElementById("peak").textContent = "$" + peak.toLocaleString();
+
+            // Share Image Data
+            document.getElementById("share-price").textContent = "$" + currentPrice.toLocaleString();
+            document.getElementById("share-pred-value").textContent = "$" + tomorrowPred.toLocaleString();
+            document.getElementById("share-phase").textContent = phase;
+            document.getElementById("share-days").textContent = daysSince;
+        }
+
+        function drawMainChart(prices) {
+            if (mainChart) mainChart.destroy();
+
+            mainChart = new Chart(document.getElementById("main-chart"), {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Bitcoin Price (USD)',
+                        data: prices,
+                        borderColor: '#22c55e',
+                        borderWidth: 3.5,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleColor: '#94a3b8',
+                            bodyColor: '#fff',
+                            padding: 12,
+                            displayColors: false,
+                            callbacks: {
+                                label: (ctx) => '$' + ctx.raw.y.toLocaleString()
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            type: 'time', 
+                            time: { unit: 'day' },
+                            grid: { color: '#334155' },
+                            ticks: { color: '#64748b' }
+                        },
+                        y: { 
+                            grid: { color: '#334155' },
+                            ticks: { 
+                                color: '#64748b',
+                                callback: v => '$' + v.toLocaleString()
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function drawShareChart(prices) {
+            if (shareChart) shareChart.destroy();
+            shareChart = new Chart(document.getElementById("share-chart"), {
+                type: 'line',
+                data: { 
+                    datasets: [{ 
+                        data: prices, 
+                        borderColor: '#22c55e', 
+                        borderWidth: 6, 
+                        tension: 0.35, 
+                        pointRadius: 0 
+                    }] 
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { type: 'time', time: { unit: 'day' }, grid: { color: '#334155' }, ticks: { display: false } },
+                        y: { grid: { color: '#334155' }, ticks: { color: '#64748b', callback: v => '$' + v.toLocaleString() } }
+                    }
+                }
+            });
+        }
+
+        async function downloadShareImage() {
+            const card = document.getElementById("share-card");
+            const canvas = await html2canvas(card, { scale: 2, backgroundColor: "#0f172a" });
+            
+            const link = document.createElement("a");
+            link.download = `VERSE-BTC-SIGNAL-${new Date().toISOString().slice(0,10)}.png`;
+            link.href = canvas.toDataURL("image/png");
+            link.click();
+        }
+
+        function shareOnX() {
+            const text = encodeURIComponent(
+                `🚀 Verse Signal\n\n` +
+                `BTC Price: $${currentPrice.toLocaleString()}\n` +
+                `Market Phase: ${document.getElementById("cycle").textContent}\n` +
+                `Tomorrow Prediction: $${tomorrowPred.toLocaleString()}\n\n` +
+                `📈 Powered by Verse Market Intelligence #Bitcoin #BTC`
+            );
+            window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
+        }
+
+        function refreshData() { loadData(); }
+
+        setInterval(loadData, 300000);
+        window.onload = loadData;
+    </script>
 </body>
 </html>
